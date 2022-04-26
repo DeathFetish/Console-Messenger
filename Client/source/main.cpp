@@ -43,7 +43,6 @@ void inputHandler()
 
 void serverHandler()
 {
-	std::ofstream file("C:\\Users\\79312\\Documents\\Messenger\\Server\\errors.txt");
 
 	while (true)
 	{
@@ -56,9 +55,7 @@ void serverHandler()
 				std::string outData;
 				unsigned short functionCode;
 				modbus::parsePacket(buffer, &functionCode, outData);
-			//	file << outData << std::endl;
 				packets.push(std::make_pair(functionCode, outData));
-			//	std::this_thread::sleep_for(std::chrono::milliseconds(50));
 			}
 		}
 	}
@@ -66,7 +63,7 @@ void serverHandler()
 
 int main()
 {
-	console::init();
+	Console::init();
 	program = new Program(nullptr);
 
 	std::thread inputThread(inputHandler);

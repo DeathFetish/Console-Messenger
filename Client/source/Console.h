@@ -2,16 +2,23 @@
 #include <string>
 #include <Windows.h>
 
-namespace console
+class Console
 {
-	const unsigned short consoleWidth = 80;
-	const unsigned short consoleHeight = 25;
-	HANDLE handle;
+private:
+	static unsigned short width;
+	static unsigned short height;
+	static std::string printfParametr;
 
-	void init()
+public:
+	static const HANDLE handle;
+	static const unsigned short color = 15;
+
+	static void init(unsigned short consoleWidth = 80, unsigned short consoleHeight = 25)
 	{
-		handle = GetStdHandle(STD_OUTPUT_HANDLE);
+		width = consoleWidth;
+		height = consoleHeight;
 
+		printfParametr = "%-" + std::to_string(width) + "s";
 		std::string comand = "mode con cols=" + std::to_string(consoleWidth) + "lines=" + std::to_string(consoleHeight);
 		system(comand.c_str());
 
@@ -24,11 +31,12 @@ namespace console
 		SetConsoleCursorInfo(handle, &structCursorInfo);
 	}
 
-	std::string getConsoleString(std::string text)
-	{
-		std::string str = std::string(consoleWidth - text.length(), ' ');
-		str.insert(str.begin(), text.begin(), text.end());
-		str.copy(const_cast<char*>(text.c_str()), text.length());
-		return str;
-	}
-}
+	static const unsigned short getWidth() { return width; }
+	static const unsigned short getHeight() { return height; }
+	static const std::string& getPrintfParametr() { return printfParametr; }
+};
+
+unsigned short Console::width;
+unsigned short Console::height;
+std::string	   Console::printfParametr;
+const HANDLE   Console::handle = GetStdHandle(STD_OUTPUT_HANDLE);;

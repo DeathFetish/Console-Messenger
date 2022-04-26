@@ -22,8 +22,8 @@ public:
 		std::string inputFieldText("Login: ");
 		login = new InputField(inputFieldText);
 
-		continueButton = new Button(console::getConsoleString("Continue"));
-		exitButton = new Button(console::getConsoleString("Exit"));
+		continueButton = new Button(std::string("Continue"));
+		exitButton = new Button(std::string("Exit"));
 		errorProvider = new Label("", 12U);
 
 		nextStates.emplace(std::make_pair("RecipientMenu", new RecipientMenu(this)));
@@ -48,31 +48,33 @@ public:
 
 			if (currentControl == 1)
 			{
+				std::string name(login->getInput());
+				if (name.length() < 5)
+				{
+					errorProvider->setText("Error! Login must contain at least 4 chars.");
+					return;
+				}
+
 				std::string error(client::init());
-				
 				if (error != "")
 				{
 					errorProvider->setText(error);
 					return;
 				}
-				else
-				{
-					std::string packet = "";
-					errorProvider->setText(packet);
 
-					modbus::makePacket(65, login->getInput().c_str(), packet);
-					
-					client::clientName = login->getInput();
-					client::isAuthorized = true;
+				std::string packet;
+				modbus::makePacket(65, name.c_str(), packet);
 
-					currentState = "RecipientMenu";
-					login->clearInput();
+				errorProvider->setText("");
+				login->clearInput();
+				currentControl = 0;
 
-					send(client::clientSocket, packet.c_str(), packet.length(), NULL);
+				client::clientName = name;
+				client::isAuthorized = true;
 
-				//	std::cout << login->getInput() << std::endl;
-				}
-				
+				currentState = "RecipientMenu";
+
+				send(client::clientSocket, packet.c_str(), packet.length(), NULL);
 			}
 		}
 
@@ -119,9 +121,9 @@ public:
 		system("cls");
 		for (auto i = 0; i < controls.size(); ++i)
 		{
-			controls[i]->print(currentControl == i);
+			controls[i]->print(currentControl == i, i != 0);
 		}
-		errorProvider->print(false);
+		errorProvider->print(false, false);
 	}
 
 	bool shouldClose() const { return isEnd; }

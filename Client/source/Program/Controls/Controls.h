@@ -9,7 +9,7 @@
 class Control
 {
 public:
-	virtual void print(bool inFocus) = 0;
+	virtual void print(bool inFocus, bool isNewLine) = 0;
 };
 
 class Label : public Control
@@ -24,11 +24,12 @@ public:
 
 	Label(const std::string& text, const unsigned short textColor = 15) : text(text), textColor(textColor) {}
 
-	void print(bool inFocus) override
+	void print(bool inFocus, bool isNewLine) override
 	{
-		SetConsoleTextAttribute(console::handle, textColor);
-		printf("%s\n", text.c_str());
-		SetConsoleTextAttribute(console::handle, 15);
+		if (isNewLine) printf("\n");
+		SetConsoleTextAttribute(Console::handle, textColor);
+		printf(Console::getPrintfParametr().c_str(), text.c_str());
+		SetConsoleTextAttribute(Console::handle, Console::color);
 	}
 
 	void setText(const std::string& text) { this->text = text; }
@@ -51,32 +52,29 @@ public:
 	Button(std::string& text, unsigned short basicColor = 15, unsigned short activeColor = 240)
 		: text(text), basicColor(basicColor), activeColor(activeColor) {}
 
-	void print(bool inFocus) override
+	void print(bool inFocus, bool isNewLine) override
 	{
+		if (isNewLine) printf("\n");
+
 		if (inFocus)
-		{
-			SetConsoleTextAttribute(console::handle, activeColor);
-			printf("%s\n", text.c_str());
-			SetConsoleTextAttribute(console::handle, 15);
-		}
+			SetConsoleTextAttribute(Console::handle, activeColor);
 		else
-		{
-			SetConsoleTextAttribute(console::handle, basicColor);
-			printf("%s\n", text.c_str());
-			SetConsoleTextAttribute(console::handle, 15);
-		}
+			SetConsoleTextAttribute(Console::handle, basicColor);
+
+		printf(Console::getPrintfParametr().c_str(), text.c_str());
+		SetConsoleTextAttribute(Console::handle, Console::color);
 	}
+
+	const std::string& getText() { return text; }
 };
 
 class InputField : public Control
 {
 private:
-	unsigned int maxLength;
-
-	std::string text;
-
+	unsigned short maxLength;
 	unsigned short cursorPos = 0;
 	std::string input;
+	std::string text;
 
 	void secondaryPrint(bool inFocus)
 	{
@@ -85,7 +83,7 @@ private:
 		if (inFocus && input.length() == 0)
 		{
 			printf("%c", '_');
-			printf("%s\n", std::string(console::consoleWidth - text.length() - 1 - input.length(), ' ').c_str());
+			printf("%s", std::string(Console::getWidth() - text.length() - 1 - input.length(), ' ').c_str());
 			return;
 		}
 		else
@@ -101,22 +99,24 @@ private:
 		if (inFocus && cursorPos == input.length())
 			printf("%c", '_');
 
-		printf("%s\n", std::string(console::consoleWidth - text.length() - 1 - input.length(), ' ').c_str());
+		printf("%s", std::string(Console::getWidth() - text.length() - 1 - input.length(), ' ').c_str());
 	}
+
 public:
 	InputField() = delete;
 	InputField(const InputField&) = delete;
 	InputField& operator = (const InputField&) = delete;
-
 	InputField(std::string text, unsigned short maxLength = 40) : text(text), maxLength(maxLength) {}
 
-	void print(bool inFocus) override
+	void print(bool inFocus, bool isNewLine) override
 	{
+		if (isNewLine) printf("\n");
+
 		if (inFocus)
 		{
-			SetConsoleTextAttribute(console::handle, 240);
+			SetConsoleTextAttribute(Console::handle, 240);
 			secondaryPrint(inFocus);
-			SetConsoleTextAttribute(console::handle, 15);
+			SetConsoleTextAttribute(Console::handle, Console::color);
 		}
 		else
 			secondaryPrint(inFocus);
@@ -157,10 +157,11 @@ public:
 
 		if (input.length() >= maxLength)
 			return;
+
 		input.insert(input.begin() + cursorPos, keyCode1);
 		cursorPos++;
 	};
 
-	std::string& getInput() { return input; }
+	const std::string& getInput() { return input; }
 	void clearInput() { input = ""; cursorPos = 0; }
 };

@@ -114,12 +114,6 @@ namespace server
 
 	bool init()
 	{
-		std::cout << "========================================" << std::endl;
-		
-		std::string l1 = "sasha";
-		std::string l2 = "andrey";
-		std::cout << getKey(l1, l2) << std::endl << getKey(l2, l1) << std::endl;
-		
 		if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
 		{
 			std::cout << "Error! Server init failed. Error code: " << WSAGetLastError() << std::endl;
@@ -168,12 +162,9 @@ namespace server
 			std::string chatName = chatIt.path().u8string();
 			chatName.erase(chatName.begin(), chatName.begin() + pathToChats.length() + 1);
 			chatName.erase(chatName.end() - 4, chatName.end());
+			
 			std::string firstLogin, secondLogin;
-
 			findLoginsInString(chatName, firstLogin, secondLogin);
-
-		//	std::cout << firstLogin << std::endl;
-		//	std::cout << secondLogin << std::endl;
 
 			std::vector<MessageInfo> messages;
 
@@ -185,15 +176,15 @@ namespace server
 				int messageSeparator = message.find_first_of(' ');
 				std::string sender = message.substr(0, messageSeparator);
 				std::string messageStr = message.substr(messageSeparator + 1, sender.length() - messageSeparator - 1);
-				std::cout << sender << "\t" << messageStr << std::endl;
+			//	std::cout << sender << "\t" << messageStr << std::endl;
 				messages.emplace_back(sender, messageStr);
 			}
 
 			chats.emplace(getKey(firstLogin, secondLogin), messages);
-			std::cout << "________________________________________" << std::endl;
+		//	std::cout << "________________________________________" << std::endl;
 
 		}
-		std::cout << "========================================" << std::endl;
+	//	std::cout << "========================================" << std::endl;
 
 		return true;
 	}
@@ -242,16 +233,21 @@ namespace server
 							clients[clientName] = true;
 						}
 						
+						std::cout << "=1===================" << std::endl;
 						for (auto it = clients.begin(); it != clients.end(); ++it)
 						{
 							std::string packet;
+							
 							std::cout << it->first.c_str() << std::endl;
-						//	std::this_thread::sleep_for(std::chrono::milliseconds(50));
+							std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
 
 							modbus::makePacket(67, it->first.c_str(), packet);
 							safeSend(clientSocket, packet);
 						//	send(clientSocket, packet.c_str(), packet.length(), NULL);
 						}
+						std::cout << "+2++++++++++++++++++" << std::endl;
+
 
 						break;
 					}
@@ -329,7 +325,7 @@ namespace server
 		while (true)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-		//	std::cout << threads.size() << std::endl;
+			std::cout << "\t\t\t" << threads.size() << std::endl;
 		}
 	}
 }

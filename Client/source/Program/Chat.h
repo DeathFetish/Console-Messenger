@@ -12,10 +12,8 @@ private:
 	Button* exitButton;
 	std::vector<Button*> messages;
 	InputField* inputField;
-	int chatHeight;
 
-	int messageIndex = 0;
-	int firstPrintableControl = 0;
+	unsigned short firstPrintableControl = 0;
 	
 	std::vector<Control*> controls;
 
@@ -24,9 +22,8 @@ public:
 	Chat(ProgramState* prevState) : ProgramState(prevState)
 	{
 		currentState = "";
-		exitButton = new Button(console::getConsoleString("Exit"));
+		exitButton = new Button(std::string("Exit"));
 		inputField = new InputField("You: ");
-		chatHeight = console::consoleHeight - 2;
 		
 		controls.push_back(inputField);
 		controls.push_back(exitButton);
@@ -43,13 +40,15 @@ public:
 				std::string packet;
 				std::string data = client::clientName + ' ' + recipient + ' ' + inputField->getInput();
 				
-				controls.insert(controls.end() - 2, new Button(console::getConsoleString("You: " + inputField->getInput()), 11, 243));
+				controls.insert(controls.end() - 2, new Button(("You: " + inputField->getInput()), 11, 243));
 				inputField->clearInput();
 
 				modbus::makePacket(70, data.c_str(), packet);
 				send(client::clientSocket, packet.c_str(), packet.length(), NULL);
 
 				currentControl++;
+				if (currentControl + 1 > firstPrintableControl + Console::getHeight() - 1)
+					firstPrintableControl++;
 			}
 
 			if (currentControl == controls.size() - 1)
@@ -60,7 +59,6 @@ public:
 				}
 				controls.erase(controls.begin(), controls.end() - 2);
 				
-				messageIndex = 0;
 				firstPrintableControl = 0;
 				currentControl = 0;
 
@@ -76,11 +74,19 @@ public:
 			{
 			case 72:
 				if (currentControl > 0)
+				{
 					currentControl--;
+					if (currentControl < firstPrintableControl)
+						firstPrintableControl--;
+				}
 				return;
 			case 80:
 				if (currentControl < controls.size() - 1)
+				{
 					currentControl++;
+					if (currentControl > firstPrintableControl + Console::getHeight() - 1)
+						firstPrintableControl++;
+				}
 				return;
 			}
 		}
@@ -94,28 +100,22 @@ public:
 		switch (functionCode)
 		{
 		case 69:
-			int separotorIndex = data.find_first_of(' ');
+			size_t separotorIndex = data.find_first_of(' ');
 			std::string sender = data.substr(0, separotorIndex);
-			std::string text = data.substr(separotorIndex + 1, sender.length() - separotorIndex - 1);
+			std::string text = data.substr(separotorIndex + 1, data.length() - separotorIndex - 1);
 
-			if (sender == client::clientName)
+			if (currentControl >= controls.size() - 2)
 			{
-			//	messages.push_back(new Button(console::getConsoleString("You: " + text), 11, 243));
-				controls.insert(controls.end() - 2, new Button(console::getConsoleString("You: " + text), 11, 243));
-			}
-			else
-			{
-			//	messages.push_back(new Button(console::getConsoleString("     " + text), 8, 248));
-				controls.insert(controls.end() - 2, new Button(console::getConsoleString("     " + text), 8, 248));
-			}
+				if (currentControl + 2 > firstPrintableControl + Console::getHeight() - 1)
+					firstPrintableControl++;
 
-			/*if (messages.size() > chatHeight && messageIndex + chatHeight + 1 != messages.size())
-			{
-				messageIndex++;
-			}*/
+				currentControl++;
+			}
 			
-			/*if (messages.size() - messageIndex <= chatHeight)
-				currentControl++;*/
+			if (sender == client::clientName)
+				controls.insert(controls.end() - 2, new Button(("You: " + text), 11, 243));
+			else
+				controls.insert(controls.end() - 2, new Button(("     " + text), 8, 248));
 
 			break;
 		}
@@ -124,16 +124,12 @@ public:
 	void print() override
 	{
 		system("cls");
-
-		for (int i = firstPrintableControl; i < firstPrintableControl + console::consoleHeight && i < controls.size(); ++i)
-		{
-			controls[i]->print(currentControl == i);
-		}
 		
-	//	inputField->print(currentControl == messages.size());
-	//	exitButton->print(currentControl == messages.size() + 1);
+		for (auto i = firstPrintableControl; i < controls.size() && i - firstPrintableControl < Console::getHeight(); ++i)
+			controls[i]->print(currentControl == i, i != firstPrintableControl);
 	}
 
 	void setRecipeint(const std::string& currentRecipint) { recipient = currentRecipint; }
+	
 	const std::string& getRecipeint() { return recipient; }
 };

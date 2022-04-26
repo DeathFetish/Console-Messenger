@@ -9,12 +9,8 @@ class ProgramState
 protected:
 	ProgramState* prevState;
 	std::map<std::string, ProgramState*> nextStates;
-	
-	std::vector<Control*> printable;
-	std::vector<Control*> focusable;
 
 	std::string currentState;
-
 	unsigned short currentControl;
 
 public:

@@ -5,14 +5,17 @@
 
 class RecipientMenu : public ProgramState
 {
-	std::vector<std::string> chatsUsers;
-	std::vector<std::pair<std::string, Button*>> toChat;
+	std::vector<Button*> controls;
 	Button* exit;
+	unsigned short firstPrintableControl = 0;
+
 public:
 	RecipientMenu(ProgramState* prevState) : ProgramState(prevState)
 	{
 		currentState = "";
-		exit = new Button(console::getConsoleString("Exit"));
+		exit = new Button(std::string("Exit"));
+		controls.push_back(exit);
+
 		nextStates.emplace(std::make_pair("Chat", new Chat(this)));
 	}
 
@@ -24,45 +27,51 @@ public:
 			return;
 		}
 
-		if (keyCode1 == 13)
-		{
-			if (currentControl == 0)
-			{
-				for (int i = 0; i < toChat.size(); ++i)
-				{
-					toChat[i].first.clear();
-					delete toChat[i].second;
-					toChat.clear();
-				}
-				client::terminate();
-				prevState->setCurrentState("");
-			}
-			else
-			{
-				std::string packet;
-				std::string data = client::clientName + ' ' + toChat[currentControl - 1].first + ' ';
-				modbus::makePacket(68, data.c_str(), packet);
-				send(client::clientSocket, packet.c_str(), packet.length(), NULL);
-				
-				currentState = "Chat";
-				((Chat*)(nextStates["Chat"]))->setRecipeint(toChat[currentControl - 1].first);
-
-				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-			}
-		}
-
 		if (keyCode1 == 224)
 		{
 			switch (keyCode2)
 			{
 			case 72:
 				if (currentControl > 0)
+				{
 					currentControl--;
+					if (currentControl < firstPrintableControl)
+						firstPrintableControl--;
+				}
 				return;
 			case 80:
-				if (currentControl < toChat.size())
+				if (currentControl < controls.size() - 1)
+				{
 					currentControl++;
+					if (currentControl > firstPrintableControl + Console::getHeight() - 1)
+						firstPrintableControl++;
+				}
 				return;
+			}
+		}
+
+		if (keyCode1 == 13)
+		{
+			if (currentControl == 0)
+			{
+				for (int i = 1; i < controls.size(); ++i)
+					delete controls[i];
+				controls.erase(controls.begin() + 1, controls.end());
+
+				client::terminate();
+				prevState->setCurrentState("");
+			}
+			else
+			{
+				std::string packet;
+				std::string data = client::clientName + ' ' + controls[currentControl]->getText() + ' ';
+				modbus::makePacket(68, data.c_str(), packet);
+				send(client::clientSocket, packet.c_str(), packet.length(), NULL);
+				
+				currentState = "Chat";
+				((Chat*)(nextStates["Chat"]))->setRecipeint(controls[currentControl]->getText());
+			
+			//	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 			}
 		}
 	}
@@ -73,24 +82,16 @@ public:
 		{
 			case 67:
 			{
-			//	std::cout << data << std::endl;
-			//	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-				Button* button = new Button(console::getConsoleString(data), 8, 248);
-				toChat.emplace_back(std::make_pair(data, button));
+				Button* button = new Button(std::string(data), 8, 248);
+				controls.push_back(button);
 				break;
 			}
 			case 69:
 			{
-			//	std::cout << data << std::endl;
-			//	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-			
-			//	currentState = "Chat";
-			//	nextStates.emplace(std::make_pair("Chat", new Chat(this)));
-
-				int separator = data.find_first_of(' ');
+				size_t separator = data.find_first_of(' ');
 				std::string sender = data.substr(0, separator);
 
-				if (currentState == "Chat" && (sender == ((Chat*)(nextStates["Chat"]))->getRecipeint() || sender == client::clientName))
+				if (currentState == "Chat" && (sender == (dynamic_cast<Chat*>(nextStates["Chat"]))->getRecipeint() || sender == client::clientName)) // переделать!!!
 					nextStates[currentState]->update(functionCode, data);
 			}
 		}
@@ -105,17 +106,9 @@ public:
 		}
 
 		system("cls");
-		exit->print(currentControl == 0);
-
-		for (auto i = 0; i < toChat.size(); ++i)
+		for (auto i = firstPrintableControl; i < controls.size() && i  - firstPrintableControl < Console::getHeight(); ++i)
 		{
-			toChat[i].second->print(i + 1 == currentControl);
+			controls[i]->print(i == currentControl, i != firstPrintableControl);
 		}
-	}
-
-	void fromChatToMenu()
-	{
-		delete nextStates[currentState];
-		currentState = "";
 	}
 };
