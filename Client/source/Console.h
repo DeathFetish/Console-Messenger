@@ -12,14 +12,15 @@ private:
 public:
 	enum class Color
 	{
-		blackGrey = 8,
-		blackBlue = 11,
-		blackRed = 12,
-		blackWhite = 15,
-		whiteBlack = 240,
-		whiteBlue = 243,
-		whiteGrey = 248
-
+		blackDarkGreen	= 2,
+		blackGrey		= 8,
+		blackBlue		= 11,
+		blackRed		= 12,
+		blackWhite		= 15,
+		whiteBlack		= 240,
+		whiteDarkGreen	= 242,
+		whiteBlue		= 243,
+		whiteGrey		= 248
 	};
 
 	static const HANDLE handle;

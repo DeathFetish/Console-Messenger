@@ -19,10 +19,5 @@ add_executable(
 
 	source/Program/ProgramState.h
 
-	source/Program/Program.h
-	source/Program/RecipientMenu.h
-	source/Program/Chat.h
-	
-
 	../../ModbusPacket/ModbusPacket.h
 )

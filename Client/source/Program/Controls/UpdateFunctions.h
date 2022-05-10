@@ -6,15 +6,45 @@ class UpdateFunctions
 public:
 	static void emptyUpdate(ProgramState* program, int keyCode1, int keyCode2) {}
 
-	static void exitButtonUpdate(ProgramState* program, int keyCode1, int keyCode2)
+	static void mainExitButtonUpdate(ProgramState* program, int keyCode1, int keyCode2)
 	{
 		if (keyCode1 == 13)
+			program->needStopRunning = true;
+	}
+
+	static void usersMenuExitButtonUpdate(ProgramState* program, int keyCode1, int keyCode2)
+	{
+		if (keyCode1 != 13)
+			return;
+
+		for (int i = 1; i < program->controls.size(); ++i)
 		{
-			if (program->prevState == nullptr)
-				program->needStopRunning = true;
-			else
-				program->prevState->currentState = "";
+			program->controlsMap.erase(program->controlsMap.find(dynamic_cast<Button*>(program->controls[i])->text));
+			delete program->controls[i];
 		}
+
+		program->controls.erase(program->controls.begin() + 1, program->controls.end());
+
+		client::terminate();
+		program->prevState->setCurrentState("");
+	}
+
+	static void exitChatButtonUpdate(ProgramState* program, int keyCode1, int keyCode2)
+	{
+		if (keyCode1 != 13)
+			return;
+		
+		for (int i = 0; i < program->controls.size() - 2; ++i)
+		{
+			delete program->controls[i];
+		}
+		program->controls.erase(program->controls.begin(), program->controls.end() - 2);
+
+		program->firstPrintableControl = 0;
+		program->currentControl = 0;
+
+		dynamic_cast<InputField*>(program->getControl("MessageInput"))->clearInput();
+		program->prevState->setCurrentState("");
 	}
 
 	static void continueToUsersMenuButtonUpdate(ProgramState* program, int keyCode1, int keyCode2)
@@ -94,11 +124,6 @@ public:
 			messageInput->standartUpdate(keyCode1, keyCode2);
 	}
 
-	static void exitChatButtonUpdate(ProgramState* program, int keyCode1, int keyCode2)
-	{
-
-	}
-
 	static void toChatButton(ProgramState* program, int keyCode1, int keyCode2)
 	{
 		if (keyCode1 == 13)
@@ -114,7 +139,9 @@ public:
 			client::recipientName = name;
 		}
 	}
-	
+
+
+
 	static void startMenuServerUpdate(ProgramState* program, unsigned short functionCode, std::string& data)
 	{
 		switch (functionCode)
@@ -134,7 +161,23 @@ public:
 		{
 		case 67:
 		{
-			program->addButton(std::string(data), std::string(data), Console::Color::blackGrey, Console::Color::whiteGrey, UpdateFunctions::toChatButton);
+			bool online = data[0] == '1';
+			data = data.substr(1);
+			if (program->getControl(data) == nullptr)
+			{
+				if (online)
+					program->addButton(std::string(data), std::string(data), Console::Color::blackDarkGreen, Console::Color::whiteDarkGreen, UpdateFunctions::toChatButton);
+				else
+					program->addButton(std::string(data), std::string(data), Console::Color::blackGrey, Console::Color::whiteGrey, UpdateFunctions::toChatButton);
+			}
+			else
+			{
+				if (online)
+					program->getControl(data)->setColor(Console::Color::blackDarkGreen, Console::Color::whiteDarkGreen);
+				else
+					program->getControl(data)->setColor(Console::Color::blackGrey, Console::Color::whiteGrey);
+			}
+
 			break;
 		}
 		case 69:
@@ -142,8 +185,8 @@ public:
 			size_t separator = data.find_first_of(' ');
 			std::string sender = data.substr(0, separator);
 
-		//	if (currentState == "Chat" && (sender == (dynamic_cast<Chat*>(nextStates["Chat"]))->getRecipeint() || sender == client::clientName)) // переделать!!!
-		//		nextStates[currentState]->update(functionCode, data);
+			if (program->currentState == "Chat" && (sender == client::recipientName || sender == client::clientName))
+				program->nextStates[program->currentState]->update(functionCode, data);
 		}
 		}
 	}

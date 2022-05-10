@@ -37,6 +37,7 @@ public:
 
 		for (auto i = 0; i != controls.size(); ++i)
 			delete controls[i];
+
 		controls.clear();
 		controlsMap.clear();
 	}
@@ -104,8 +105,9 @@ public:
 	{
 		Button* button = new Button(this, text, basicColor, activeColor, callback);
 		controls.insert(controls.end() - endOffset, button);
-	//	controls.push_back(button);
-		controlsMap.emplace(std::make_pair(name, button));
+
+		if (!name.empty())
+			controlsMap.emplace(std::make_pair(name, button));
 
 		return button;
 	}
@@ -120,7 +122,9 @@ public:
 	{
 		InputField* inputField = new InputField(this, text, maxLength, basicColor, activeColor, callback);
 		controls.push_back(inputField);
-		controlsMap.emplace(std::make_pair(name, inputField));
+
+		if (!name.empty())
+			controlsMap.emplace(std::make_pair(name, inputField));
 
 		return inputField;
 	}
@@ -132,18 +136,18 @@ public:
 		return nextState;
 	}
 
-	bool shouldClose() const { return needStopRunning; }
-
-	void setServerUpdate(std::function<void(ProgramState*, unsigned short, std::string&)> serverUpdate)
-	{
-		this->serverUpdate = serverUpdate;
-	}
-
 	Control* getControl(std::string name)
 	{
 		if (controlsMap.find(name) == controlsMap.end())
 			return nullptr;
 		else
 			return controlsMap[name];
+	}
+
+	bool shouldClose() const { return needStopRunning; }
+
+	void setServerUpdate(std::function<void(ProgramState*, unsigned short, std::string&)> serverUpdate)
+	{
+		this->serverUpdate = serverUpdate;
 	}
 };

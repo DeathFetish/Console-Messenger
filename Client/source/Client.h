@@ -21,7 +21,7 @@ namespace client
 	std::chrono::steady_clock::time_point currentTime;
 
 	bool isAuthorized = false;
-	double updatePeriod = 5000.0;
+	double updatePeriod = 2500.0;
 	double deltaTime;
 
 	std::string recipientName;

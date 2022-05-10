@@ -22,4 +22,10 @@ public:
 
 	virtual void print(bool inFocus, bool isNewLine) = 0;
 	virtual void update(int keyCode1, int keyCode2) = 0;
+
+	void setColor(Console::Color basicColor, Console::Color activeColor)
+	{
+		this->basicColor = (unsigned short)basicColor;
+		this->activeColor = (unsigned short)activeColor;
+	}
 };

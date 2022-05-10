@@ -32,15 +32,9 @@ void inputHandler()
 		int first = _getch();
 		int second = 0;
 
-		//	std::cout << first;
-		//	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
 		if (first == 224)
-		{
 			second = _getch();
-		//	std::cout << second;
-		//	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-		}
+
 		inputs.push(std::make_pair(first, second));
 	}
 }
@@ -72,14 +66,14 @@ int main()
 	ProgramState* program = new ProgramState(nullptr);
 	program->setServerUpdate(UpdateFunctions::startMenuServerUpdate);
 	program->addInputField("LoginInput", "Login: ", 20, Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::loginInputUpdate);
-	program->addButton("ExitButton", "Exit", Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::exitButtonUpdate);
+	program->addButton("ExitButton", "Exit", Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::mainExitButtonUpdate);
 
 	auto usersMenu = program->addProgramState("UsersMenu");
 	usersMenu->setServerUpdate(UpdateFunctions::usersMenuServerUpdate);
-	usersMenu->addButton("ExitButton", "Exit", Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::exitButtonUpdate);
+	usersMenu->addButton("ExitButton", "Exit", Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::usersMenuExitButtonUpdate);
 
 	auto chat = usersMenu->addProgramState("Chat");
-	chat->setServerUpdate(UpdateFunctions::usersMenuServerUpdate);
+	chat->setServerUpdate(UpdateFunctions::chatServerUpdate);
 	chat->addInputField("MessageInput", "You: ", 50, Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::messageInputUpdate);
 	chat->addButton("ExitButton", "Exit", Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::exitChatButtonUpdate);
 
@@ -121,5 +115,6 @@ int main()
 	}
 
 	client::terminate();
+	delete program;
 	return 0;
 }

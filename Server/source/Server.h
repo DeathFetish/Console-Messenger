@@ -84,10 +84,12 @@ namespace server
 	sockaddr_in serverAddr;
 
 	std::mutex sendMutex;
-	std::mutex fileStreamMutex;
+	std::mutex chatsFileStreamMutex;
+	std::mutex clientsFileStreamMutex;
 
 	std::vector<std::thread> threads;
 	std::map<std::string, std::vector<MessageInfo>> chats;
+	
 	std::map<std::string, Client> onlineClients;
 	std::map<std::string, bool> clients;
 
@@ -98,9 +100,9 @@ namespace server
 		sendMutex.unlock();
 	}
 
-	void safeWriteInFile(std::string& filePath, MessageInfo message)
+	void safeWriteMessageInFile(std::string& filePath, MessageInfo message)
 	{
-		fileStreamMutex.lock();
+		chatsFileStreamMutex.lock();
 
 		std::fstream file(filePath, std::ios::app);
 		if (file.is_open())
@@ -109,7 +111,19 @@ namespace server
 		}
 		file.close();
 
-		fileStreamMutex.unlock();
+		chatsFileStreamMutex.unlock();
+	}
+
+	void safeWriteClientInFile(std::string& clientName)
+	{
+		clientsFileStreamMutex.lock();
+		std::fstream file(clientsFilePath, std::ios::app);
+		if (file.is_open())
+		{
+			file << clientName << std::endl;
+		}
+		file.close();
+		clientsFileStreamMutex.unlock();
 	}
 
 	bool init()
@@ -200,7 +214,7 @@ namespace server
 		std::chrono::steady_clock::time_point updateTimePoint;
 		
 		std::string clientName;
-		double maxPeriod = 10000;
+		double maxPeriod = 5000.0;
 
 		while (true)
 		{
@@ -212,24 +226,18 @@ namespace server
 				unsigned short functionCode = 0;
 				modbus::parsePacket(buffer, &functionCode, data);
 				
-			//	std::cout << recvResult << "\t" << functionCode << std::endl;
-
 				switch (functionCode)
 				{
-					case 65:
+					case 65: // подключение пользователя
 					{
 						clientName = data;
+						
 						onlineClients.emplace(std::make_pair(clientName, Client(clientSocket, clientAddr)));
 						updateTimePoint = std::chrono::high_resolution_clock::now();
 
 						if (clients.find(clientName) == clients.end())
 						{
-							std::fstream file(clientsFilePath, std::ios::app);
-							if (file.is_open())
-							{
-								file << clientName << std::endl;
-							}
-							file.close();
+							safeWriteClientInFile(clientName);
 							clients[clientName] = true;
 						}
 						
@@ -237,17 +245,28 @@ namespace server
 						for (auto it = clients.begin(); it != clients.end(); ++it)
 						{
 							std::string packet;
-							
-							std::cout << it->first.c_str() << std::endl;
+							std::string data = (onlineClients.find(it->first) != onlineClients.end() ? "1" : "0") + it->first;
+							std::cout << data << std::endl;
 							std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-
-							modbus::makePacket(67, it->first.c_str(), packet);
-							safeSend(clientSocket, packet);
-						//	send(clientSocket, packet.c_str(), packet.length(), NULL);
+							
+							modbus::makePacket(67, data.c_str(), packet);
+							safeSend(clientSocket, packet); // отправка клиенту всех пользовательей. формат сообшения (1 или 0) + (имя пользователя)
 						}
-						std::cout << "+2++++++++++++++++++" << std::endl;
 
+						for (auto it = onlineClients.begin(); it != onlineClients.end(); ++it)
+						{
+							if (it->first != clientName)
+							{
+								std::string packet;
+								std::string data = "1" + clientName;
+								std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+								modbus::makePacket(67, data.c_str(), packet);
+								safeSend(it->second.clientSocket, packet); // отправка остальным клиентам имени присоединившегося
+							}
+						}
+
+						std::cout << "+2++++++++++++++++++" << std::endl;
 
 						break;
 					}
@@ -292,7 +311,7 @@ namespace server
 						data.erase(data.begin(), data.begin() + secondLogin.length() + 1);
 
 						MessageInfo message(firstLogin, data);
-						safeWriteInFile(server::getChatFilePath(firstLogin, secondLogin), message);
+						safeWriteMessageInFile(server::getChatFilePath(firstLogin, secondLogin), message);
 						chats[getKey(firstLogin, secondLogin)].push_back(message);
 
 						auto recipinet = onlineClients.find(secondLogin);
@@ -315,7 +334,20 @@ namespace server
 			double deltaTime = std::chrono::duration<double, std::milli>(currentTime - updateTimePoint).count();
 
 			if (deltaTime > maxPeriod)
+			{
+				onlineClients.erase(onlineClients.find(clientName));
+				clients[clientName] = false;
+				for (auto it = onlineClients.begin(); it != onlineClients.end(); ++it)
+				{
+					std::string packet;
+					std::string data = "0" + clientName;
+					std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+					modbus::makePacket(67, data.c_str(), packet);
+					safeSend(it->second.clientSocket, packet);
+				}
 				return;
+			}
 		}
 
 	}

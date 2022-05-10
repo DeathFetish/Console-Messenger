@@ -5,7 +5,6 @@
 class InputField : public Control
 {
 private:
-
 	unsigned short maxLength;
 	unsigned short cursorPos = 0;
 	
