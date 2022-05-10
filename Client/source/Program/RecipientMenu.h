@@ -6,17 +6,22 @@
 class RecipientMenu : public ProgramState
 {
 	std::vector<Button*> controls;
-	Button* exit;
 	unsigned short firstPrintableControl = 0;
 
 public:
 	RecipientMenu(ProgramState* prevState) : ProgramState(prevState)
 	{
 		currentState = "";
-		exit = new Button(std::string("Exit"));
-		controls.push_back(exit);
+		controls.push_back(new Button(std::string("Exit")));
 
 		nextStates.emplace(std::make_pair("Chat", new Chat(this)));
+	}
+
+	~RecipientMenu()
+	{
+		for (auto it = controls.begin(); it != controls.end(); ++it)
+			delete *it;
+		controls.clear();
 	}
 
 	void update(int keyCode1, int keyCode2) override

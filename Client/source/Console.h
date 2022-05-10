@@ -10,8 +10,19 @@ private:
 	static std::string printfParametr;
 
 public:
+	enum class Color
+	{
+		blackGrey = 8,
+		blackBlue = 11,
+		blackRed = 12,
+		blackWhite = 15,
+		whiteBlack = 240,
+		whiteBlue = 243,
+		whiteGrey = 248
+
+	};
+
 	static const HANDLE handle;
-	static const unsigned short color = 15;
 
 	static void init(unsigned short consoleWidth = 80, unsigned short consoleHeight = 25)
 	{

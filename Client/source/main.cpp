@@ -14,12 +14,16 @@
 #include "Console.h"
 #include "Client.h"
 #include "Program/ProgramState.h"
-#include "Program/Program.h"
+
+#include "Program/Controls/Controls.h"
+#include "Program/Controls/InputField.h"
+#include "Program/Controls/Button.h"
+#include "Program/Controls/UpdateFunctions.h"
+
 #include "../../ModbusPacket/ModbusPacket.h"
 
 std::queue<std::pair<int, std::string>> packets;
 std::queue<std::pair<int, int>> inputs;
-Program* program;
 
 void inputHandler()
 {
@@ -64,14 +68,27 @@ void serverHandler()
 int main()
 {
 	Console::init();
-	program = new Program(nullptr);
+
+	ProgramState* program = new ProgramState(nullptr);
+	program->setServerUpdate(UpdateFunctions::startMenuServerUpdate);
+	program->addInputField("LoginInput", "Login: ", 20, Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::loginInputUpdate);
+	program->addButton("ExitButton", "Exit", Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::exitButtonUpdate);
+
+	auto usersMenu = program->addProgramState("UsersMenu");
+	usersMenu->setServerUpdate(UpdateFunctions::usersMenuServerUpdate);
+	usersMenu->addButton("ExitButton", "Exit", Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::exitButtonUpdate);
+
+	auto chat = usersMenu->addProgramState("Chat");
+	chat->setServerUpdate(UpdateFunctions::usersMenuServerUpdate);
+	chat->addInputField("MessageInput", "You: ", 50, Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::messageInputUpdate);
+	chat->addButton("ExitButton", "Exit", Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::exitChatButtonUpdate);
 
 	std::thread inputThread(inputHandler);
 	inputThread.detach();
 
 	std::thread serverThread(serverHandler);
 	serverThread.detach();
-	
+
 	program->print();
 
 	while (!program->shouldClose())

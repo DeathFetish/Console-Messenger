@@ -51,7 +51,7 @@ public:
 				std::string name(login->getInput());
 				if (name.length() < 5)
 				{
-					errorProvider->setText("Error! Login must contain at least 4 chars.");
+					errorProvider->setText("Error! Login must contain at least 5 chars.");
 					return;
 				}
 
@@ -127,4 +127,14 @@ public:
 	}
 
 	bool shouldClose() const { return isEnd; }
+
+	~Program()
+	{
+		delete login;
+		delete continueButton;
+		delete exitButton;
+		delete errorProvider;
+
+		controls.clear();
+	}
 };

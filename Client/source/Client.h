@@ -24,6 +24,8 @@ namespace client
 	double updatePeriod = 5000.0;
 	double deltaTime;
 
+	std::string recipientName;
+
 	std::string init()
 	{
 		if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
