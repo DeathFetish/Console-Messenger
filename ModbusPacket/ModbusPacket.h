@@ -11,7 +11,7 @@ namespace modbus
 	const ushort infoLength = 8U;
 	const ushort maxDataLength = 247U;
 
-	void makePacket(const uchar functionCode, const char* data, char* outPacket)
+	static void makePacket(const uchar functionCode, const char* data, char* outPacket)
 	{
 		ushort length = strlen(data) <= maxDataLength ? strlen(data) : maxDataLength;
 		ushort offset = 0;
@@ -39,7 +39,7 @@ namespace modbus
 		outPacket[infoLength + length] = '\0';
 	}
 
-	void parsePacket(const char* packet, ushort* outFunctionCode, char*& data)
+	static void parsePacket(const char* packet, ushort* outFunctionCode, char*& data)
 	{
 		ushort length;
 		memcpy(&length, packet + 4, sizeof(length));
@@ -54,7 +54,7 @@ namespace modbus
 		data[length] = '\0';
 	}
 
-	void parsePacket(const char* packet, ushort* outFunctionCode, std::string& outData)
+	static void parsePacket(const char* packet, ushort* outFunctionCode, std::string& outData)
 	{
 		ushort length;
 		memcpy(&length, packet + 4, sizeof(length));
@@ -70,7 +70,7 @@ namespace modbus
 		outData = std::string(data, length);
 	}
 
-	void makePacket(const uchar functionCode, const char* data, std::string& packet)
+	static void makePacket(const uchar functionCode, const char* data, std::string& packet)
 	{
 		char outPacket[MAXBYTE];
 

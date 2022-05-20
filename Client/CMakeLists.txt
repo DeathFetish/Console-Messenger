@@ -11,13 +11,17 @@ add_executable(
 	
 	source/Console.h
 	source/Client.h
+	source/Client.cpp
 
 	source/Program/Controls/Controls.h
 	source/Program/Controls/InputField.h
 	source/Program/Controls/Button.h
 	source/Program/Controls/UpdateFunctions.h
 
+
 	source/Program/ProgramState.h
+	source/Program/Program.h
+
 
 	../../ModbusPacket/ModbusPacket.h
 )

@@ -16,7 +16,7 @@ public:
 	Button& operator = (const Button&) = delete;
 
 	Button(ProgramState* program,
-		std::string& text,
+		std::string text,
 		Console::Color basicColor,
 		Console::Color activeColor,
 		std::function<void(ProgramState*, int, int)> callback)

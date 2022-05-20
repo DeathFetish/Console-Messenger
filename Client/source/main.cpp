@@ -13,6 +13,7 @@
 
 #include "Console.h"
 #include "Client.h"
+#include "Program/Program.h"
 #include "Program/ProgramState.h"
 
 #include "Program/Controls/Controls.h"
@@ -41,14 +42,13 @@ void inputHandler()
 
 void serverHandler()
 {
-
 	while (true)
 	{
-		while (client::isAuthorized)
+		while (Client::isAuthorized())
 		{
 			char buffer[MAXBYTE] = { 0 };
 
-			if (recv(client::clientSocket, buffer, MAXBYTE, NULL) == -1);
+			if (recv(Client::getSocket(), buffer, MAXBYTE, NULL) == -1);
 			{
 				std::string outData;
 				unsigned short functionCode;
@@ -63,19 +63,28 @@ int main()
 {
 	Console::init();
 
-	ProgramState* program = new ProgramState(nullptr);
-	program->setServerUpdate(UpdateFunctions::startMenuServerUpdate);
-	program->addInputField("LoginInput", "Login: ", 20, Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::loginInputUpdate);
-	program->addButton("ExitButton", "Exit", Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::mainExitButtonUpdate);
+	auto startMenu = Program::addProgramState("StartMenu");
+	
+	startMenu->setServerUpdate(UpdateFunctions::startMenuServerUpdate);
+	auto loginInput = new InputField(startMenu, "Login: ", 20, Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::loginInputUpdate);
+	startMenu->addControl(loginInput, startMenu->getControlsCount(), "LoginInput");
+	auto exitButton = new Button(startMenu, "Exit", Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::mainExitButtonUpdate);
+	startMenu->addControl(exitButton, startMenu->getControlsCount(), "ExitButton");
 
-	auto usersMenu = program->addProgramState("UsersMenu");
+	auto usersMenu = Program::addProgramState("UsersMenu");
 	usersMenu->setServerUpdate(UpdateFunctions::usersMenuServerUpdate);
-	usersMenu->addButton("ExitButton", "Exit", Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::usersMenuExitButtonUpdate);
+	auto exitUsersMenuButton = new Button(usersMenu, "Exit", Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::usersMenuExitButtonUpdate);
+	usersMenu->addControl(exitUsersMenuButton, usersMenu->getControlsCount(), "ExitButton");
 
-	auto chat = usersMenu->addProgramState("Chat");
+	auto chat = Program::addProgramState("Chat");
 	chat->setServerUpdate(UpdateFunctions::chatServerUpdate);
-	chat->addInputField("MessageInput", "You: ", 50, Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::messageInputUpdate);
-	chat->addButton("ExitButton", "Exit", Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::exitChatButtonUpdate);
+	auto messageInput = new InputField(chat, "You: ", 50, Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::messageInputUpdate);
+	chat->addControl(messageInput, chat->getControlsCount(), "MessageInput");
+	auto exitChatButton = new Button(chat, "Exit", Console::Color::blackWhite, Console::Color::whiteBlack, UpdateFunctions::exitChatButtonUpdate);
+	chat->addControl(exitChatButton, chat->getControlsCount(), "ExitButton");
+
+	Program::setCurrentState("StartMenu");
+	Program::print();
 
 	std::thread inputThread(inputHandler);
 	inputThread.detach();
@@ -83,9 +92,7 @@ int main()
 	std::thread serverThread(serverHandler);
 	serverThread.detach();
 
-	program->print();
-
-	while (!program->shouldClose())
+	while (true)
 	{
 		bool needPrint = false;
 
@@ -94,7 +101,7 @@ int main()
 			auto pair = packets.front();
 			packets.pop();
 
-			program->update(pair.first, pair.second);
+			Program::update(pair.first, pair.second);
 			needPrint = true;
 		}
 
@@ -103,18 +110,20 @@ int main()
 			auto pairCode = inputs.front();
 			inputs.pop();
 
-			program->update(pairCode.first, pairCode.second);
+			Program::update(pairCode.first, pairCode.second);
 			needPrint = true;
 		}
 
-		if (needPrint)
-			program->print();
+		if (Program::getCurrentState() == "Exit") break;
 
-		if (client::isAuthorized)
-			client::timeUpdate();
+		if (needPrint)
+			Program::print();
+
+		Client::timeUpdate();
 	}
 
-	client::terminate();
-	delete program;
+	Program::terminate();
+	Client::terminate();
+
 	return 0;
 }

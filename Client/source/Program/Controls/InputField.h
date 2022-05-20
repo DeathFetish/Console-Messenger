@@ -46,7 +46,7 @@ public:
 	InputField(const InputField&) = delete;
 	InputField& operator = (const InputField&) = delete;
 	InputField(ProgramState* program,
-		std::string& text,
+		std::string text,
 		unsigned short maxLength,
 		Console::Color basicColor,
 		Console::Color activeColor,

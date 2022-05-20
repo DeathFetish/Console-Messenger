@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <functional>
+#include <algorithm>
 
 #include "Controls/Controls.h"
 #include "Controls/InputField.h"
@@ -12,44 +13,30 @@ class ProgramState
 {
 protected:
 	friend class UpdateFunctions;
+	friend class Program;
 	
-	std::map<std::string, Control*> controlsMap;
+	std::map<std::string, std::map<std::string, Control*>> allControls;
 	std::vector<Control*> controls;
+
 	unsigned short currentControl = 0;
 	unsigned short firstPrintableControl = 0;
 
-	ProgramState* prevState;
-	std::string currentState;
-	std::map<std::string, ProgramState*> nextStates;
-	bool needStopRunning = false;
-
 	std::function<void(ProgramState*, unsigned short, std::string&)> serverUpdate;
 
-	void setCurrentState(std::string state) { currentState = state; }
-
-public:
-	ProgramState(ProgramState* prevState) : prevState(prevState) {}
+	ProgramState() {}
 	~ProgramState()
 	{
-		for (auto it = nextStates.begin(); it != nextStates.end(); ++it)
-			delete it->second;
-		nextStates.clear();
-
 		for (auto i = 0; i != controls.size(); ++i)
 			delete controls[i];
 
 		controls.clear();
-		controlsMap.clear();
+		allControls.clear();
 	}
+
+public:
 
 	void print()
 	{
-		if (!currentState.empty())
-		{
-			nextStates[currentState]->print();
-			return;
-		}
-
 		system("cls");
 
 		for (auto i = firstPrintableControl; i < controls.size() && i - firstPrintableControl < Console::getHeight(); ++i)
@@ -58,12 +45,6 @@ public:
 
 	virtual void update(int keyCode1, int keyCode2)
 	{
-		if (!currentState.empty())
-		{
-			nextStates[currentState]->update(keyCode1, keyCode2);
-			return;
-		}
-
 		if (keyCode1 == 224)
 		{
 			switch (keyCode2)
@@ -90,64 +71,35 @@ public:
 		controls[currentControl]->update(keyCode1, keyCode2);
 	}
 
-	virtual void update(int functionCode, std::string data)
+	virtual void update(int functionCode, std::string& data)
 	{
 		serverUpdate(this, functionCode, data);
 	}
 
-	Button* addButton(
-		std::string name,
-		std::string text,
-		Console::Color basicColor,
-		Console::Color activeColor,
-		std::function<void(ProgramState*, int, int)> callback,
-		unsigned short endOffset = 0)
+	template <typename T>
+	void addControl(T* control, int position, std::string name = "")
 	{
-		Button* button = new Button(this, text, basicColor, activeColor, callback);
-		controls.insert(controls.end() - endOffset, button);
+		position = std::clamp(position, 0, (int)controls.size());
+		controls.insert(controls.begin() + position, control);
 
 		if (!name.empty())
-			controlsMap.emplace(std::make_pair(name, button));
-
-		return button;
+			allControls[typeid(T).name()].emplace(std::make_pair(name, control));
 	}
 
-	InputField* addInputField(
-		std::string name,
-		std::string text,
-		unsigned short maxLength,
-		Console::Color basicColor,
-		Console::Color activeColor,
-		std::function<void(ProgramState*, int, int)> callback)
+	template <typename T>
+	T* const getControl(const std::string name)
 	{
-		InputField* inputField = new InputField(this, text, maxLength, basicColor, activeColor, callback);
-		controls.push_back(inputField);
-
-		if (!name.empty())
-			controlsMap.emplace(std::make_pair(name, inputField));
-
-		return inputField;
-	}
-
-	ProgramState* addProgramState(std::string stateName)
-	{
-		ProgramState* nextState = new ProgramState(this);
-		nextStates.emplace(std::make_pair(stateName, nextState));
-		return nextState;
-	}
-
-	Control* getControl(std::string name)
-	{
-		if (controlsMap.find(name) == controlsMap.end())
+		if (allControls.find(typeid(T).name()) == allControls.end())
 			return nullptr;
-		else
-			return controlsMap[name];
-	}
 
-	bool shouldClose() const { return needStopRunning; }
+		auto& typeNameMap = allControls[typeid(T).name()];
+		return typeNameMap.find(name) != typeNameMap.end() ? static_cast<T*>(typeNameMap[name]) : nullptr;
+	}
 
 	void setServerUpdate(std::function<void(ProgramState*, unsigned short, std::string&)> serverUpdate)
 	{
 		this->serverUpdate = serverUpdate;
 	}
+
+	const unsigned short getControlsCount() { return controls.size(); }
 };

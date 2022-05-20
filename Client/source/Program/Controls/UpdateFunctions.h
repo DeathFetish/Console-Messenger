@@ -1,5 +1,7 @@
 #pragma once
+#include "../Program.h"
 #include "../ProgramState.h"
+
 
 class UpdateFunctions
 {
@@ -9,7 +11,7 @@ public:
 	static void mainExitButtonUpdate(ProgramState* program, int keyCode1, int keyCode2)
 	{
 		if (keyCode1 == 13)
-			program->needStopRunning = true;
+			Program::setCurrentState("Exit");
 	}
 
 	static void usersMenuExitButtonUpdate(ProgramState* program, int keyCode1, int keyCode2)
@@ -17,16 +19,16 @@ public:
 		if (keyCode1 != 13)
 			return;
 
-		for (int i = 1; i < program->controls.size(); ++i)
+		for (int i = 1; i < program->getControlsCount(); ++i)
 		{
-			program->controlsMap.erase(program->controlsMap.find(dynamic_cast<Button*>(program->controls[i])->text));
+			program->allControls["class Button"].erase(dynamic_cast<Button*>(program->controls[i])->getText());
 			delete program->controls[i];
 		}
 
 		program->controls.erase(program->controls.begin() + 1, program->controls.end());
 
-		client::terminate();
-		program->prevState->setCurrentState("");
+		Client::terminate();
+		Program::setCurrentState("StartMenu");
 	}
 
 	static void exitChatButtonUpdate(ProgramState* program, int keyCode1, int keyCode2)
@@ -40,24 +42,23 @@ public:
 		}
 		program->controls.erase(program->controls.begin(), program->controls.end() - 2);
 
+
 		program->firstPrintableControl = 0;
 		program->currentControl = 0;
 
-		dynamic_cast<InputField*>(program->getControl("MessageInput"))->clearInput();
-		program->prevState->setCurrentState("");
+		program->getControl<InputField>("MessageInput")->clearInput();
+		Program::setCurrentState("UsersMenu");
 	}
 
 	static void continueToUsersMenuButtonUpdate(ProgramState* program, int keyCode1, int keyCode2)
 	{
 		if (keyCode1 == 13)
-		{
-			program->currentState = "UsersMenu";
-		}
+			Program::setCurrentState("UsersMenu");
 	}
 
 	static void loginInputUpdate(ProgramState* program, int keyCode1, int keyCode2)
 	{
-		auto loginInput = dynamic_cast<InputField*>(program->getControl("LoginInput"));
+		auto loginInput = program->getControl<InputField>("LoginInput");
 		
 		switch (keyCode1)
 		{
@@ -71,26 +72,23 @@ public:
 				return;
 			}
 
-			std::string error(client::init());
+			std::string error(Client::init());
 			if (error != "")
 			{
 				loginInput->setError(error);
 				return;
 			}
 
-			std::string packet;
-			modbus::makePacket(65, name.c_str(), packet);
-
 			loginInput->clearError();
 			loginInput->clearInput();
 			program->currentControl = 0;
 
-			client::clientName = name;
-			client::isAuthorized = true;
+			Client::sendData(65, name.c_str());
+			Client::setClientName(name);
+			Client::enableAuthorized(true);
 
-			program->currentState = "UsersMenu";
+			Program::setCurrentState("UsersMenu");
 
-			send(client::clientSocket, packet.c_str(), packet.length(), NULL);
 			return;
 		}
 		default: loginInput->standartUpdate(keyCode1, keyCode2); break;
@@ -99,22 +97,18 @@ public:
 
 	static void messageInputUpdate(ProgramState* program, int keyCode1, int keyCode2)
 	{
-		auto messageInput = dynamic_cast<InputField*>(program->getControl("MessageInput"));
+		auto messageInput = program->getControl<InputField>("MessageInput");
 		
 		if (keyCode1 == 13)
 		{
 			if (messageInput->getInput() == "")
 				return;
 
-			std::string packet;
-			std::string data = client::clientName + ' ' + client::recipientName + ' ' + messageInput->getInput();
-
-			program->addButton("", "You: " + messageInput->getInput(), Console::Color::blackBlue, Console::Color::whiteBlue, UpdateFunctions::emptyUpdate, 2);
+			Client::sendData(70, Client::getClientName() + ' ' + Client::getRecipientName() + ' ' + messageInput->getInput());
+			auto messageButton = new Button(program, "You: " + messageInput->getInput(), Console::Color::blackBlue, Console::Color::whiteBlue, UpdateFunctions::emptyUpdate);
+			program->addControl(messageButton, program->getControlsCount() - 2);
 
 			messageInput->clearInput();
-
-			modbus::makePacket(70, data.c_str(), packet);
-			send(client::clientSocket, packet.c_str(), packet.length(), NULL);
 
 			program->currentControl++;
 			if (program->currentControl + 1 > program->firstPrintableControl + Console::getHeight() - 1)
@@ -130,30 +124,16 @@ public:
 		{
 			std::string name = dynamic_cast<Button*>(program->controls[program->currentControl])->getText();
 			
-			std::string packet;
-			std::string data = client::clientName + ' ' + name + ' ';
-			modbus::makePacket(68, data.c_str(), packet);
-			send(client::clientSocket, packet.c_str(), packet.length(), NULL);
+			Client::sendData(68, Client::getClientName() + ' ' + name + ' ');
+			Client::setRecipientName(name);
 
-			program->currentState = "Chat";
-			client::recipientName = name;
+			Program::setCurrentState("Chat");
 		}
 	}
 
 
 
-	static void startMenuServerUpdate(ProgramState* program, unsigned short functionCode, std::string& data)
-	{
-		switch (functionCode)
-		{
-		case 67:
-			program->nextStates["UsersMenu"]->update(functionCode, data);
-			break;
-		case 69:
-			program->nextStates["UsersMenu"]->update(functionCode, data);
-			break;
-		}
-	}
+	static void startMenuServerUpdate(ProgramState* program, unsigned short functionCode, std::string& data) { }
 
 	static void usersMenuServerUpdate(ProgramState* program, unsigned short functionCode, std::string& data)
 	{
@@ -163,30 +143,27 @@ public:
 		{
 			bool online = data[0] == '1';
 			data = data.substr(1);
-			if (program->getControl(data) == nullptr)
+			auto clientButton = program->getControl<Button>(data);
+
+			if (clientButton == nullptr)
 			{
+				Button* newClientButton;
+
 				if (online)
-					program->addButton(std::string(data), std::string(data), Console::Color::blackDarkGreen, Console::Color::whiteDarkGreen, UpdateFunctions::toChatButton);
+					newClientButton = new Button(program, data, Console::Color::blackDarkGreen, Console::Color::whiteDarkGreen, UpdateFunctions::toChatButton);
 				else
-					program->addButton(std::string(data), std::string(data), Console::Color::blackGrey, Console::Color::whiteGrey, UpdateFunctions::toChatButton);
+					newClientButton = new Button(program, data, Console::Color::blackGrey, Console::Color::whiteGrey, UpdateFunctions::toChatButton);
+
+				program->addControl(newClientButton, program->getControlsCount(), data);
 			}
 			else
 			{
 				if (online)
-					program->getControl(data)->setColor(Console::Color::blackDarkGreen, Console::Color::whiteDarkGreen);
+					clientButton->setColor(Console::Color::blackDarkGreen, Console::Color::whiteDarkGreen);
 				else
-					program->getControl(data)->setColor(Console::Color::blackGrey, Console::Color::whiteGrey);
+					clientButton->setColor(Console::Color::blackGrey, Console::Color::whiteGrey);
 			}
-
 			break;
-		}
-		case 69:
-		{
-			size_t separator = data.find_first_of(' ');
-			std::string sender = data.substr(0, separator);
-
-			if (program->currentState == "Chat" && (sender == client::recipientName || sender == client::clientName))
-				program->nextStates[program->currentState]->update(functionCode, data);
 		}
 		}
 	}
@@ -208,10 +185,14 @@ public:
 				program->currentControl++;
 			}
 
-			if (sender == client::clientName)
-				program->addButton("", "You: " + text, Console::Color::blackBlue, Console::Color::whiteBlue, UpdateFunctions::emptyUpdate, 2);
+			Button* messageButton;
+			if (sender == Client::getClientName())
+				messageButton = new Button(program, "You: " + text, Console::Color::blackBlue, Console::Color::whiteBlue, UpdateFunctions::emptyUpdate);
 			else
-				program->addButton("", "     " + text, Console::Color::blackGrey, Console::Color::whiteGrey, UpdateFunctions::emptyUpdate, 2);
+				messageButton = new Button(program, "     " + text, Console::Color::blackGrey, Console::Color::whiteGrey, UpdateFunctions::emptyUpdate);
+
+			program->addControl(messageButton, program->getControlsCount() - 2);
+
 			break;
 		}
 	}

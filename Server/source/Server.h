@@ -349,7 +349,6 @@ namespace server
 				return;
 			}
 		}
-
 	}
 
 	void threadKiller()
